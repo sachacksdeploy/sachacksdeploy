@@ -130,11 +130,9 @@ export const AuthDialog = ({ open, mode, onOpenChange, onModeChange }: AuthDialo
       toast({ title: "Sign up failed", description: error, variant: "destructive" });
       return;
     }
-    toast({
-      title: "Account created",
-      description: "Check your inbox to confirm your email, then log in.",
-    });
-    onModeChange("login");
+    // Firebase signs the new account in right away; no email confirmation.
+    onOpenChange(false);
+    navigate("/dashboard");
   };
 
   const onLogin = async (values: LoginValues) => {
