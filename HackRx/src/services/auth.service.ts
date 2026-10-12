@@ -163,13 +163,22 @@ export async function signIn(values: LoginValues): Promise<string | null> {
 export async function signInWithGoogle(): Promise<string | null> {
   try {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
     const result = await signInWithPopup(auth, provider);
 
-    // Create the profile only on first Google sign-in.
-    await ensureUserDoc(result.user);
+    // Create the profile only on first Google sign-in. The user is already
+    // signed in at this point, so a failure here is logged, not surfaced.
+    await ensureUserDoc(result.user).catch((e) =>
+      console.error("Couldn't create the users profile:", e),
+    );
 
     return null;
   } catch (error) {
+    const code = (error as { code?: string }).code;
+    // Closing the popup isn't an error worth a toast.
+    if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+      return "";
+    }
     console.error("Google sign-in failed:", error);
     return error instanceof Error
       ? error.message
