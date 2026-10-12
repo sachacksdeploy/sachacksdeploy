@@ -1,5 +1,10 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  browserSessionPersistence,
+  initializeAuth,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -12,6 +17,15 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
 
+// getAuth() keeps the session in IndexedDB. Firebase closes that database
+// whenever the page is hidden — which happens while the Google popup is open —
+// and signInWithPopup then fails with "Database is closing/hidden" when it
+// tries to save the user. localStorage has no such lifecycle, so we use it
+// (falling back to sessionStorage) instead.
+export const auth = initializeAuth(app, {
+  persistence: [browserLocalPersistence, browserSessionPersistence],
+  popupRedirectResolver: browserPopupRedirectResolver,
+});
+
+export const db = getFirestore(app);
