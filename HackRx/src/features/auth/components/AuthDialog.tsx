@@ -113,7 +113,13 @@ export const AuthDialog = ({ open, mode, onOpenChange, onModeChange }: AuthDialo
     setBusy(true);
     const error = await signInWithGoogle();
     setBusy(false);
-    if (error) toast({ title: "Google sign-in failed", description: error, variant: "destructive" });
+    if (error === "") return; // popup closed by the user
+    if (error) {
+      toast({ title: "Google sign-in failed", description: error, variant: "destructive" });
+      return;
+    }
+    onOpenChange(false);
+    navigate("/dashboard");
   };
 
   const onSignUp = async (values: SignUpValues) => {
