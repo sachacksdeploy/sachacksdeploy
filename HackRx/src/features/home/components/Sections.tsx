@@ -139,7 +139,7 @@ const timeline = [
     )
   },
   {
-    date: "November *", what: "Applications close", body: "Last call — applications shut at end of day.", icon: (
+    date: "November 8", what: "Applications close", body: "Last call — applications shut at end of day.", icon: (
       <svg className="icon" viewBox="0 0 100 100" aria-hidden="true"><circle cx="35" cy="38" r="12" fill="none" stroke="var(--ink-black)" strokeWidth="3.4" /><circle cx="65" cy="38" r="12" fill="none" stroke="var(--ink-black)" strokeWidth="3.4" /><path d="M18 78c2-14 10-22 17-22M82 78c-2-14-10-22-17-22" stroke="var(--ink-black)" strokeWidth="3.4" {...S} /></svg>
     )
   },
