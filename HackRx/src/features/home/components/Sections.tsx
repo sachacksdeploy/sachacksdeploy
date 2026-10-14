@@ -180,7 +180,7 @@ const sponsorTiers = [
 const faqs = [
   { q: "When and where?", a: "Betty Irene Moore (Link Map) in Sacramento, CA. Date is Sunday, Novemeber 15th" },
   { q: "Who can attend?", a: "Any college student or recent graduate is welcome to participate in SacHacks!" },
-  { q: "When is the application deadline?", a: "Friday, November 6th at 11:59pm" },
+  { q: "When is the application deadline?", a: "Friday, November 8th at 11:59pm" },
   { q: "What is a hackathon?", a: "A hackathon is a 24-hour event where students collaborate to build creative projects and compete for prizes." },
   { q: "What is the maximum team size?", a: "Teams should be of 1-3 members. No more than 3 allowed on a single team." },
 ];
