@@ -50,7 +50,7 @@ const EVENT_NAME = "Admin Control Room";
 // PLACEHOLDER — the event's dates, printed on the certificate preview. Should come
 // from an event/settings document in Firestore; hardcoded because none exists.
 // Seen: Certificates tab → Prizes panel → top line of the PREVIEW card.
-const EVENT_DATES = "10–11 October 2026";
+const EVENT_DATES = "15 November 2026";
 // PLACEHOLDER — the venue/host line printed on the certificate preview. Same story:
 // belongs on an event/settings document, hardcoded until there is one.
 // Seen: Certificates tab → Prizes panel → PREVIEW card, sentence under the recipient.
@@ -82,6 +82,8 @@ interface Row {
   memberId: string | null;
   /** The `team_id` on their user document, or null when they have none. */
   teamId: string | null;
+  /** Every answer from their submitted application, or null if they haven't submitted one. */
+  answers: Record<string, unknown> | null;
 }
 
 interface TeamRow {
@@ -207,12 +209,12 @@ const STYLES = `
 // Seen: Certificates tab → Prizes panel (the six radio options), the PREVIEW card
 // title, and the "Issue …" buttons in the bulk bar and under the preview.
 const AWARDS: Award[] = [
-  { id: "trans",  num: "01", label: "Best Translational Science",  desc: "For the team moving discovery to bedside fastest." },
-  { id: "clin",   num: "02", label: "Best Clinical Impact",        desc: "Best Clinical Science Prize — care that measurably improves outcomes." },
-  { id: "bio",    num: "03", label: "Best Biotech Innovation",     desc: "Hardware, wetware, and data pushed somewhere new." },
-  { id: "equity", num: "04", label: "Health Equity Award",         desc: "For the build that widens access to care." },
-  { id: "inter",  num: "05", label: "Best Interdisciplinary Hack", desc: "Best overall hack across disciplines." },
-  { id: "part",   num: "06", label: DEFAULT_CERT_TITLE,            desc: "Every hacker who checked in and submitted.", everyone: true },
+  { id: "trans", num: "01", label: "Best Translational Science", desc: "For the team moving discovery to bedside fastest." },
+  { id: "clin", num: "02", label: "Best Clinical Impact", desc: "Best Clinical Science Prize — care that measurably improves outcomes." },
+  { id: "bio", num: "03", label: "Best Biotech Innovation", desc: "Hardware, wetware, and data pushed somewhere new." },
+  { id: "equity", num: "04", label: "Health Equity Award", desc: "For the build that widens access to care." },
+  { id: "inter", num: "05", label: "Best Interdisciplinary Hack", desc: "Best overall hack across disciplines." },
+  { id: "part", num: "06", label: DEFAULT_CERT_TITLE, desc: "Every hacker who checked in and submitted.", everyone: true },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -270,6 +272,69 @@ function initialsOf(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+/**
+ * The application answers shown in the detail panel, in form order. Any other
+ * field found on an application is listed after these under its raw key.
+ */
+const ANSWER_LABELS: [key: string, label: string][] = [
+  ["full_name", "Full name"],
+  ["phone", "Phone"],
+  ["age_range", "Age"],
+  ["gender", "Gender"],
+  ["gender_self", "Gender (own words)"],
+  ["ethnicity", "Ethnicity"],
+  ["institution", "Institution"],
+  ["academic_standing", "Standing"],
+  ["high_school_case", "High school statement"],
+  ["major", "Major"],
+  ["first_hackathon", "First hackathon"],
+  ["interests", "Interests"],
+  ["motivations", "Motivations"],
+  ["resume_link", "Resume"],
+  ["github", "GitHub"],
+  ["team_status", "Team"],
+  ["tshirt_size", "T-shirt"],
+  ["dietary", "Dietary"],
+  ["dietary_other", "Dietary (other)"],
+  ["referral_source", "Heard via"],
+  ["goals", "Goals"],
+  ["additional_info", "Additional info"],
+  ["code_of_conduct", "Code of conduct"],
+  ["signature", "Signature"],
+  ["created_at", "Submitted"],
+  ["reviewed_at", "Reviewed"],
+];
+
+/** Bookkeeping fields that are shown elsewhere or mean nothing to an admin. */
+const HIDDEN_ANSWERS = new Set([
+  "id", "user_id", "app_id", "email", "status", "reviewed_by", "institution_choice", "institution_other",
+]);
+
+/** Answers rendered as links (SECURITY — still only if they are http(s)). */
+const LINK_ANSWERS = new Set(["resume_link", "github"]);
+
+function formatAnswer(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (Array.isArray(value)) return value.map(formatAnswer).filter(Boolean).join(", ");
+  const ts = value as { toDate?: () => Date };
+  if (typeof ts.toDate === "function") return ts.toDate().toLocaleString();
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value).trim();
+}
+
+/** The non-empty answers on an application, as [key, label, text] in display order. */
+function answerRows(answers: Record<string, unknown>): [string, string, string][] {
+  const known = new Set(ANSWER_LABELS.map(([k]) => k));
+  const extra = Object.keys(answers)
+    .filter((k) => !known.has(k) && !HIDDEN_ANSWERS.has(k))
+    .sort()
+    .map((k): [string, string] => [k, k.replace(/_/g, " ")]);
+  return [...ANSWER_LABELS, ...extra]
+    .map(([k, label]): [string, string, string] => [k, label, formatAnswer(answers[k])])
+    .filter(([, , v]) => v !== "");
+}
+
 function toSignupStatus(raw: unknown): SignupStatus {
   const s = text(raw).toLowerCase();
   if (s === "approved" || s === "accepted") return "accepted";
@@ -281,8 +346,8 @@ function statusTone(s: SignupStatus): { label: string; bg: string; fg: string } 
   switch (s) {
     case "accepted": return { label: "Accepted", bg: C.lilacSoft, fg: C.lilac };
     case "declined": return { label: "Declined", bg: "rgba(242,237,228,.08)", fg: "rgba(242,237,228,.55)" };
-    case "none":     return { label: "No application", bg: "rgba(242,237,228,.08)", fg: "rgba(242,237,228,.55)" };
-    default:         return { label: "Awaiting decision", bg: "rgba(245,226,123,.14)", fg: C.gold };
+    case "none": return { label: "No application", bg: "rgba(242,237,228,.08)", fg: "rgba(242,237,228,.55)" };
+    default: return { label: "Awaiting decision", bg: "rgba(245,226,123,.14)", fg: C.gold };
   }
 }
 
@@ -290,8 +355,8 @@ function tone(t: Tone): { bg: string; fg: string } {
   switch (t) {
     case "accepted": return { bg: C.lilacSoft, fg: C.lilac };
     case "declined": return { bg: "rgba(242,237,228,.08)", fg: "rgba(242,237,228,.55)" };
-    case "off":      return { bg: "rgba(242,237,228,.08)", fg: "rgba(242,237,228,.55)" };
-    default:         return { bg: "rgba(245,226,123,.14)", fg: C.gold };
+    case "off": return { bg: "rgba(242,237,228,.08)", fg: "rgba(242,237,228,.55)" };
+    default: return { bg: "rgba(245,226,123,.14)", fg: C.gold };
   }
 }
 
@@ -453,7 +518,8 @@ const AdminDashboard = () => {
       if (uid && title && !certByUser.has(uid)) certByUser.set(uid, title);
     });
 
-    // Applications, keyed by email so they can be matched to user accounts.
+    // Applications, keyed by the applicant's uid, and by email as a fallback.
+    const appById = new Map(workspace.applications.map((a) => [a.id, a]));
     const appByEmail = new Map<string, (typeof workspace.applications)[number]>();
     workspace.applications.forEach((a) => {
       const e = text(a.email).toLowerCase();
@@ -466,7 +532,7 @@ const AdminDashboard = () => {
     // Everyone with an account.
     workspace.members.forEach((m) => {
       const email = text(m.email);
-      const app = email ? appByEmail.get(email.toLowerCase()) : undefined;
+      const app = appById.get(m.id) ?? (email ? appByEmail.get(email.toLowerCase()) : undefined);
       if (app) matchedApps.add(app.id);
       // Organisers aren't participants, so they (and any application of theirs) stay off the roster.
       if (m.admin === true) {
@@ -475,7 +541,8 @@ const AdminDashboard = () => {
       }
       rows.push({
         key: `member:${m.id}`,
-        name: text(m.full_name, text(m.username, "New member")),
+        // The application's name is what they signed with; profiles often have no name set.
+        name: text(app?.full_name, text(m.full_name, text(m.username, text(m.display_name, email.split("@")[0] || "Unnamed member")))),
         email: text(email, "Email unavailable"),
         school: text(app?.institution, "No institution"),
         signup: app ? toSignupStatus(app.status) : "none",
@@ -483,6 +550,7 @@ const AdminDashboard = () => {
         applicationId: app ? app.id : null,
         memberId: m.id,
         teamId: text(m.team_id) || null,
+        answers: app ?? null,
       });
     });
 
@@ -499,6 +567,7 @@ const AdminDashboard = () => {
         applicationId: a.id,
         memberId: null,
         teamId: null,
+        answers: a,
       });
     });
 
@@ -747,43 +816,43 @@ const AdminDashboard = () => {
   const bulkActions: { label: string; primary?: boolean; quiet?: boolean; run: () => void }[] = [
     ...(isSignups
       ? [
-          { label: "Accept", primary: true, run: () => void runReview("approved") },
-          { label: "Decline", run: () => void runReview("rejected") },
-        ]
+        { label: "Accept", primary: true, run: () => void runReview("approved") },
+        { label: "Decline", run: () => void runReview("rejected") },
+      ]
       : isTeams
         ? [
-            // PLACEHOLDER — approves the selected teams' pending join/removal requests.
-            // Needs a team-requests collection and a service function to resolve them.
-            // Seen: Teams tab → tick a team → pink bulk bar above the table.
-            { label: "Approve team change", primary: true, run: () => notWired("Team change approval") },
-            // PLACEHOLDER — promotes a member to team leader. Needs a leader field on
-            // the team doc (e.g. `leader_id`) and a service function to set it.
-            // Seen: Teams tab → tick a team → pink bulk bar above the table.
-            { label: "Make leader", run: () => notWired("Team leaders") },
-            // PLACEHOLDER — removes a member from a team. Needs team membership stored
-            // (a `members` array on the team, or `team_id` on each user) to edit.
-            // Seen: Teams tab → tick a team → pink bulk bar above the table.
-            { label: "Remove from team", run: () => notWired("Team membership") },
-          ]
+          // PLACEHOLDER — approves the selected teams' pending join/removal requests.
+          // Needs a team-requests collection and a service function to resolve them.
+          // Seen: Teams tab → tick a team → pink bulk bar above the table.
+          { label: "Approve team change", primary: true, run: () => notWired("Team change approval") },
+          // PLACEHOLDER — promotes a member to team leader. Needs a leader field on
+          // the team doc (e.g. `leader_id`) and a service function to set it.
+          // Seen: Teams tab → tick a team → pink bulk bar above the table.
+          { label: "Make leader", run: () => notWired("Team leaders") },
+          // PLACEHOLDER — removes a member from a team. Needs team membership stored
+          // (a `members` array on the team, or `team_id` on each user) to edit.
+          // Seen: Teams tab → tick a team → pink bulk bar above the table.
+          { label: "Remove from team", run: () => notWired("Team membership") },
+        ]
         : [
-            { label: `Issue “${award.label}”`, primary: true, run: () => void runCertify() },
-            // PLACEHOLDER — issues the chosen award to every teammate of the selected
-            // hackers. Needs team membership in Firestore to know who the teammates are.
-            // Seen: Certificates tab → tick a hacker → pink bulk bar above the table.
-            { label: "Extend to whole teams", run: () => notWired("Team-wide certificates") },
-          ]),
+          { label: `Issue “${award.label}”`, primary: true, run: () => void runCertify() },
+          // PLACEHOLDER — issues the chosen award to every teammate of the selected
+          // hackers. Needs team membership in Firestore to know who the teammates are.
+          // Seen: Certificates tab → tick a hacker → pink bulk bar above the table.
+          { label: "Extend to whole teams", run: () => notWired("Team-wide certificates") },
+        ]),
     { label: "Email selected", run: emailSelected },
     { label: "Clear", quiet: true, run: clearSelection },
   ];
 
   const lensCards = [
-    { key: "signups" as Lens, title: "Signups",      count: plural(stats.awaiting, "waiting", "waiting"), figure: String(stats.total),    note: "Accept or decline registrations",     fg: C.pink },
+    { key: "signups" as Lens, title: "Signups", count: plural(stats.awaiting, "waiting", "waiting"), figure: String(stats.total), note: "Accept or decline registrations", fg: C.pink },
     // PLACEHOLDER — the Teams card's "0 waiting" badge is the number of pending team
     // requests (joins/removals). Hardcoded to 0 until a requests collection exists.
     // Seen: top of the page → "Teams" card → pill in its top-right corner.
-    { key: "teams"   as Lens, title: "Teams",        count: plural(0, "waiting", "waiting"),              figure: String(stats.teams),    note: "Teams as participants form them",     fg: C.lilac },
-    { key: "demos"   as Lens, title: "Demos",        count: plural(stats.demos, "submitted", "submitted"), figure: String(stats.demos),   note: "Project demos and review states",     fg: C.ink },
-    { key: "certs"   as Lens, title: "Certificates", count: plural(stats.issued, "issued", "issued"),     figure: String(stats.accepted), note: "Assign and issue awards by hand",     fg: C.gold },
+    { key: "teams" as Lens, title: "Teams", count: plural(0, "waiting", "waiting"), figure: String(stats.teams), note: "Teams as participants form them", fg: C.lilac },
+    { key: "demos" as Lens, title: "Demos", count: plural(stats.demos, "submitted", "submitted"), figure: String(stats.demos), note: "Project demos and review states", fg: C.ink },
+    { key: "certs" as Lens, title: "Certificates", count: plural(stats.issued, "issued", "issued"), figure: String(stats.accepted), note: "Assign and issue awards by hand", fg: C.gold },
   ];
 
   const titles: Record<Lens, [string, string]> = {
@@ -1268,16 +1337,16 @@ const AdminDashboard = () => {
                   </div>
 
                   <div style={{ padding: "6px 20px 16px" }}>
-                    <DetailRow label="Signup">
+                    <DetailRow label="Application status">
                       <Pill label={person ? personStatus.label : "—"} bg={personStatus.bg} fg={personStatus.fg} />
                     </DetailRow>
                     <DetailRow label="Email">
                       {person
                         ? (() => {
-                            // SECURITY — only link the address if it is a plain, valid email.
-                            const href = mailtoHref(person.email);
-                            return href ? <a href={href}>{person.email}</a> : person.email;
-                          })()
+                          // SECURITY — only link the address if it is a plain, valid email.
+                          const href = mailtoHref(person.email);
+                          return href ? <a href={href}>{person.email}</a> : person.email;
+                        })()
                         : "—"}
                     </DetailRow>
                     <DetailRow label="Institution">
@@ -1299,6 +1368,31 @@ const AdminDashboard = () => {
                       </span>
                     </DetailRow>
                   </div>
+
+                  {person && (
+                    <div style={{ padding: "0 20px 16px", borderTop: `1px solid ${C.line}` }}>
+                      <div style={{ margin: "16px 0 4px", fontFamily: MONO, fontWeight: 500, fontSize: 11, lineHeight: 1, letterSpacing: ".12em", color: C.ink40 }}>
+                        APPLICATION
+                      </div>
+                      {person.answers ? (
+                        answerRows(person.answers).map(([key, label, value], i, all) => {
+                          // SECURITY — participant links are only clickable if they are http(s).
+                          const href = LINK_ANSWERS.has(key) ? safeHttpUrl(value) : null;
+                          return (
+                            <DetailRow key={key} label={label} last={i === all.length - 1}>
+                              <span style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                                {href ? <a href={href} target="_blank" rel="noopener noreferrer">{value}</a> : value}
+                              </span>
+                            </DetailRow>
+                          );
+                        })
+                      ) : (
+                        <div style={{ padding: "12px 0 4px", fontSize: 13, color: C.ink50 }}>
+                          They haven't submitted an application yet.
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", padding: "16px 20px", borderTop: `1px solid ${C.line}` }}>
                     <GhostButton
@@ -1366,10 +1460,6 @@ const AdminDashboard = () => {
                   )}
 
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", padding: "16px 20px", borderTop: `1px solid ${C.line}` }}>
-                    {/* PLACEHOLDER — should open a mailto to every member of the focused
-                        team. Needs team membership to know whose addresses to use.
-                        Seen: Teams tab → right-hand detail panel → footer buttons. */}
-                    <GhostButton onClick={() => notWired("Emailing a team")}>Email the team</GhostButton>
                     {/* PLACEHOLDER — should let the admin pick a new leader for the focused
                         team. Needs a leader field on the team doc and a service function.
                         Seen: Teams tab → right-hand detail panel → footer buttons. */}
@@ -1382,7 +1472,7 @@ const AdminDashboard = () => {
               {isSignups && (
                 <div style={cardStyle}>
                   <div style={cardHeadStyle}>
-                    <h2 style={headingStyle}>Where signups stand</h2>
+                    <h2 style={headingStyle}>Where Applications stand</h2>
                   </div>
                   <div style={{ padding: "6px 20px 16px" }}>
                     <DetailRow label="Awaiting">
