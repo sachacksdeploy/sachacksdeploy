@@ -11,6 +11,7 @@ import { useAcceptance } from "@/hooks/useAcceptance";
 import { X } from "lucide-react";
 
 const APPEAL_VIDEO = "https://www.youtube.com/embed/8RFbx4lK-Qs?si=2Spwih1i9thvaOdt";
+const APPEAL_EMAIL = "status@sachacks.io";
 
 // Midnight Pacific at the start of each day. November dates use PST (UTC-8):
 // daylight saving ends Nov 1, 2026.
@@ -56,19 +57,35 @@ const Dashboard = () => {
   const teamsTriggers = useGlitchTriggers();
   const appealTriggers = useGlitchTriggers();
   const [appealOpen, setAppealOpen] = useState(false);
+  // The real appeal instructions, shown on top of the video when it opens.
+  const [appealNoticeOpen, setAppealNoticeOpen] = useState(false);
 
-  // While the appeal video is up: lock page scroll and let Escape close it.
+  const openAppeal = () => {
+    setAppealOpen(true);
+    setAppealNoticeOpen(true);
+  };
+  const closeAppeal = () => {
+    setAppealOpen(false);
+    setAppealNoticeOpen(false);
+  };
+
+  // While the appeal video is up: lock page scroll. Escape dismisses the
+  // notice first, then the video.
   useEffect(() => {
     if (!appealOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setAppealOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (appealNoticeOpen) setAppealNoticeOpen(false);
+      else closeAppeal();
+    };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKey);
     };
-  }, [appealOpen]);
+  }, [appealOpen, appealNoticeOpen]);
   const toApplicationForm = () => {
     navigate("/apply")
   }
@@ -126,7 +143,7 @@ const Dashboard = () => {
             type="button"
             className="nav-cta cursor-pointer !px-7 !py-3 !text-base"
             {...appealTriggers}
-            onClick={() => setAppealOpen(true)}
+            onClick={openAppeal}
           >
             Appeal
           </button>
@@ -176,14 +193,49 @@ const Dashboard = () => {
           />
           <button
             type="button"
-            autoFocus
-            onClick={() => setAppealOpen(false)}
+            autoFocus={!appealNoticeOpen}
+            onClick={closeAppeal}
             aria-label="Close"
             title="Close (Esc)"
             className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           >
             <X className="h-6 w-6" strokeWidth={3} />
           </button>
+
+          {/* The actual appeal process, layered over the video. */}
+          {appealNoticeOpen && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60 p-4">
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="appeal-notice-title"
+                aria-describedby="appeal-notice-body"
+                className="w-full max-w-md rounded-2xl border border-white/15 bg-[var(--void)] p-6 text-center font-sans text-[var(--cream)] shadow-2xl sm:p-8"
+              >
+                <h2 id="appeal-notice-title" className="text-2xl font-bold">
+                  Want to appeal?
+                </h2>
+                <p id="appeal-notice-body" className="mt-3 text-base text-[var(--ink-dim)]">
+                  To appeal your decision, send us an email at{" "}
+                  <a
+                    href={`mailto:${APPEAL_EMAIL}?subject=${encodeURIComponent("Application Appeal")}`}
+                    className="font-semibold text-[var(--surface-yellow)] underline underline-offset-4 hover:text-[var(--cream)]"
+                  >
+                    {APPEAL_EMAIL}
+                  </a>{" "}
+                  explaining why you'd like your application reconsidered.
+                </p>
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => setAppealNoticeOpen(false)}
+                  className="nav-cta mt-6 cursor-pointer !px-7 !py-3 !text-base"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Layout>
