@@ -351,6 +351,8 @@ export const AuthDialog = ({ open, mode, onOpenChange, onModeChange }: AuthDialo
               <dd>finance@sachacks.io</dd>
               <dt>Press</dt>
               <dd>contact@sachacks.io</dd>
+              <dt>Applications</dt>
+              <dd>status@sachacks.io</dd>
               <dt>Where</dt>
               <dd>UC Davis, Davis, CA — November 15th, 2026</dd>
             </dl>
