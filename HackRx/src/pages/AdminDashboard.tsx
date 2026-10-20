@@ -39,6 +39,12 @@ import {
   reviewApplication,
   type AdminWorkspace,
 } from "@/services/admin.service";
+import {
+  MAX_DECLINE_COMMENT,
+  type DeclineDetails,
+  sendDeclineEmail,
+  type DeclineReason,
+} from "@/services/email.service";
 import { MAX_TEAM_SIZE } from "@/services/team.service";
 
 /* ------------------------------------------------------------------ */
@@ -194,6 +200,8 @@ const STYLES = `
 .sh-ghost:hover:not(:disabled) { background: rgba(242,237,228,.07); }
 .sh-solid:hover:not(:disabled) { filter: brightness(1.12); }
 .sh-award:hover { border-color: rgba(242,237,228,.3) !important; }
+.sh-reason:hover { border-color: rgba(242,237,228,.3) !important; }
+.sh-admin textarea:focus { border-color: rgba(242,237,228,.4); }
 .sh-spin { animation: sh-rotate 1s linear infinite; }
 @keyframes sh-rotate { to { transform: rotate(360deg); } }
 `;
@@ -461,6 +469,139 @@ function EmptyState({ title, note }: { title: string; note: string }) {
   );
 }
 
+/** The checkboxes in the decline dialog, in display order. */
+const DECLINE_OPTIONS: { key: DeclineReason; label: string }[] = [
+  { key: "bot", label: "Bot / automated registration" },
+  { key: "incomplete", label: "Incomplete registration" },
+  { key: "not_student", label: "Not a university student" },
+];
+
+/**
+ * Asks why the application(s) are being declined. The ticked reasons and the
+ * comment go into the email the applicant receives.
+ */
+function DeclineDialog({
+  rows, busy, onCancel, onConfirm,
+}: {
+  rows: Row[];
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: (details: DeclineDetails) => void;
+}) {
+  const [reasons, setReasons] = useState<Partial<Record<DeclineReason, true>>>({});
+  const [comment, setComment] = useState("");
+  const chosen = DECLINE_OPTIONS.map((o) => o.key).filter((k) => reasons[k]);
+  const canSubmit = !busy && (chosen.length > 0 || comment.trim().length > 0);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !busy) onCancel(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy, onCancel]);
+
+  const who = rows.length === 1 ? rows[0].name : `${rows.length} applicants`;
+
+  return (
+    <div
+      onClick={() => { if (!busy) onCancel(); }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100, background: "rgba(12,4,16,.72)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sh-decline-title"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480, maxHeight: "calc(100vh - 32px)", overflowY: "auto",
+          background: C.surface, border: `1px solid ${C.border18}`, borderRadius: 12, padding: 22,
+        }}
+      >
+        <h2 id="sh-decline-title" style={headingStyle}>Decline {who}</h2>
+        <p style={{ margin: "8px 0 18px", fontSize: 13, color: C.ink60 }}>
+          Why is this application being declined? Your answers are emailed to{" "}
+          {rows.length === 1 ? <span style={{ color: C.ink }}>{rows[0].email}</span> : "each applicant"}.
+        </p>
+
+        <div style={{ fontFamily: MONO, fontWeight: 500, fontSize: 11, lineHeight: 1, letterSpacing: ".12em", color: C.ink40, marginBottom: 10 }}>
+          REASONS
+        </div>
+        <div style={{ display: "grid", gap: 8 }}>
+          {DECLINE_OPTIONS.map((o) => (
+            <label
+              key={o.key}
+              className="sh-reason"
+              style={{
+                display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                border: `1px solid ${reasons[o.key] ? C.pink : C.border}`, borderRadius: 8,
+                background: reasons[o.key] ? C.pinkSoft : "transparent",
+                padding: "10px 12px", fontSize: 13.5,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={!!reasons[o.key]}
+                disabled={busy}
+                onChange={(e) =>
+                  setReasons((prev) => {
+                    const next = { ...prev };
+                    if (e.target.checked) next[o.key] = true;
+                    else delete next[o.key];
+                    return next;
+                  })
+                }
+              />
+              {o.label}
+            </label>
+          ))}
+        </div>
+
+        <label
+          htmlFor="sh-decline-comment"
+          style={{ display: "block", fontFamily: MONO, fontWeight: 500, fontSize: 11, lineHeight: 1, letterSpacing: ".12em", color: C.ink40, margin: "18px 0 10px" }}
+        >
+          COMMENTS
+        </label>
+        <textarea
+          id="sh-decline-comment"
+          value={comment}
+          disabled={busy}
+          maxLength={MAX_DECLINE_COMMENT}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Anything else the applicant should know (optional)"
+          rows={4}
+          style={{
+            width: "100%", resize: "vertical", background: C.sunken, color: C.ink,
+            border: `1px solid ${C.border18}`, borderRadius: 8, padding: "9px 12px",
+            font: "inherit", fontSize: 13.5, outline: "none",
+          }}
+        />
+        <div style={{ fontSize: 12, color: C.ink45, marginTop: 6 }}>
+          Tick at least one reason or leave a comment.
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+          <GhostButton onClick={onCancel} disabled={busy}>Cancel</GhostButton>
+          <button
+            type="button"
+            className="sh-solid"
+            disabled={!canSubmit}
+            onClick={() => onConfirm({ reasons: chosen, comment: comment.trim() })}
+            style={{
+              background: C.pink, border: `1px solid ${C.pink}`, color: "#fff",
+              borderRadius: 8, padding: "5px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            {busy ? "Declining…" : "Decline & send email"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
@@ -475,6 +616,8 @@ const AdminDashboard = () => {
   // SECURITY — `busy` state only updates on the next render, so a fast double
   // click could start the same bulk write twice. This ref flips synchronously.
   const inFlight = useRef(false);
+  /** The applicants the decline dialog is open for, or null when it's closed. */
+  const [declining, setDeclining] = useState<Row[] | null>(null);
 
   const [lens, setLens] = useState<Lens>("signups");
   const [selected, setSelected] = useState<Record<string, true>>({});
@@ -701,7 +844,11 @@ const AdminDashboard = () => {
       description: `${what} isn't backed by a Firestore collection yet.`,
     });
 
-  const runReview = async (status: "approved" | "rejected", rows: Row[] = selectedRows) => {
+  const runReview = async (
+    status: "approved" | "rejected",
+    rows: Row[] = selectedRows,
+    decline?: DeclineDetails,
+  ) => {
     const targets = rows.filter((r) => r.applicationId);
     const skipped = rows.length - targets.length;
     if (targets.length === 0) {
@@ -712,27 +859,48 @@ const AdminDashboard = () => {
       });
       return;
     }
+    // Declining always goes through the reasons dialog first, which also
+    // serves as the confirmation step.
+    if (status === "rejected" && !decline) {
+      setDeclining(targets);
+      return;
+    }
     // SECURITY — confirm before changing several applications in one click.
     if (
+      status === "approved" &&
       targets.length > CONFIRM_ABOVE &&
-      !window.confirm(`${status === "approved" ? "Accept" : "Decline"} ${targets.length} applications?`)
+      !window.confirm(`Accept ${targets.length} applications?`)
     ) return;
     if (inFlight.current) return; // SECURITY — block a second run while one is in progress
     inFlight.current = true;
     setBusy(true);
     const errors = (
-      await Promise.all(targets.map((r) => reviewApplication(r.applicationId as string, status, actor)))
+      await Promise.all(targets.map(async (r) => {
+        const error = await reviewApplication(r.applicationId as string, status, actor);
+        if (error || !decline) return error;
+        // The decline is saved; now tell the applicant why. SECURITY — only
+        // well-formed addresses are sent to (see isSafeEmail).
+        if (!isSafeEmail(r.email)) return `Declined ${r.name}, but they have no usable email address.`;
+        const mailError = await sendDeclineEmail(r.email, r.name, decline);
+        return mailError && `Declined ${r.name}, but the email wasn't sent. ${mailError}`;
+      }))
     ).filter(Boolean) as string[];
     setBusy(false);
     inFlight.current = false;
+    setDeclining(null);
 
     if (errors.length) {
-      toast({ title: "Some reviews failed", description: errors[0], variant: "destructive" });
+      toast({
+        title: errors.length === targets.length ? "Reviews failed" : "Some reviews failed",
+        description: errors.length > 1 ? `${errors[0]} (+${errors.length - 1} more)` : errors[0],
+        variant: "destructive",
+      });
     } else {
       toast({
         title: status === "approved" ? "Accepted" : "Declined",
         description:
           `${plural(targets.length, "application", "applications")} updated` +
+          (decline ? ` · ${plural(targets.length, "email", "emails")} sent` : "") +
           (skipped ? ` · ${skipped} skipped (no application on file)` : ""),
       });
     }
@@ -875,6 +1043,15 @@ const AdminDashboard = () => {
       <main className="sh-admin">
         <style>{STYLES}</style>
         <PortalDecor />
+
+        {declining && (
+          <DeclineDialog
+            rows={declining}
+            busy={busy}
+            onCancel={() => setDeclining(null)}
+            onConfirm={(details) => void runReview("rejected", declining, details)}
+          />
+        )}
 
         <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 28px 56px", position: "relative" }}>
           {/* Header */}
