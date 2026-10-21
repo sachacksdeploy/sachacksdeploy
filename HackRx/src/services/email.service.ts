@@ -6,7 +6,8 @@
  * Configure in .env (PLACEHOLDERS until the account is set up):
  *   VITE_EMAILJS_SERVICE_ID   the EmailJS email service, connected to the
  *                             status@sachacks.io mailbox (EMAIL_FROM)
- *   VITE_EMAILJS_TEMPLATE_ID  the decline template
+ *   VITE_EMAILJS_TEMPLATE_ID  the template both emails (accept and decline)
+ *                             go through; subject and body come from here
  *   VITE_EMAILJS_PUBLIC_KEY   the account's public key
  *
  * The EmailJS template should be set up as:
@@ -18,7 +19,7 @@
  * Also sent, for a custom layout: {{to_name}}, {{reasons}}, {{comment}},
  * and {{message}} (plain-text body).
  *
- * The email wording lives in DECLINE_TEMPLATE below, with {{placeholder}}
+ * The email wording lives in ACCEPT_TEMPLATE and DECLINE_TEMPLATE below, with {{placeholder}}
  * markers filled in by renderTemplate(). Values are HTML-escaped in the html
  * version, so anything an admin types can't change the email's markup.
  *
@@ -35,7 +36,7 @@ export const EMAIL_EVENT_NAME = "SacHacks VIII";
 /** Where applicants are told to write back. */
 export const EMAIL_CONTACT = "status@sachacks.io";
 
-/** The address decline emails are sent from. */
+/** The address accept and decline emails are sent from. */
 export const EMAIL_FROM = "status@sachacks.io";
 
 /**
@@ -126,11 +127,69 @@ export function declineEmail(name: string, details: DeclineDetails) {
   };
 }
 
-/** Sends the decline email. Returns an error message, or null on success. */
-export async function sendDeclineEmail(
+/**
+ * The acceptance email.
+ *
+ * Placeholders:
+ *   {{name}}       applicant's name ("there" when unknown)
+ *   {{event}}      EMAIL_EVENT_NAME
+ *   {{contact}}    EMAIL_CONTACT
+ *   {{dashboard}}  link to the Hacker Hub dashboard
+ */
+export const ACCEPT_TEMPLATE = {
+  subject: "You're accepted to {{event}}! 🎉",
+  text: `Hi {{name}},
+
+Congratulations — you've been accepted to {{event}}! We're excited to have you.
+
+Head to your dashboard for next steps: {{dashboard}}
+
+From there you can:
+- Start a team and invite others to join it
+- Accept an invite to join someone else's team
+- Keep an eye on event updates and the countdown
+
+Questions? Reach us at {{contact}}.
+
+See you there,
+— The {{event}} team`,
+  html: `<p>Hi {{name}},</p>
+<p>Congratulations — you've been accepted to <strong>{{event}}</strong>! We're excited to have you.</p>
+<p>Head to your <a href="{{dashboard}}">dashboard</a> for next steps. From there you can:</p>
+<ul>
+<li>Start a team and invite others to join it</li>
+<li>Accept an invite to join someone else's team</li>
+<li>Keep an eye on event updates and the countdown</li>
+</ul>
+<p>Questions? Reach us at <a href="mailto:{{contact}}">{{contact}}</a>.</p>
+<p>See you there,<br>— The {{event}} team</p>`,
+};
+
+/** The live site, linked from emails. */
+export const SITE_URL = "https://sachacks.io";
+
+/** Builds the acceptance email: { subject, text, html }. */
+export function acceptEmail(name: string) {
+  const base = {
+    name: name || "there",
+    event: EMAIL_EVENT_NAME,
+    contact: EMAIL_CONTACT,
+    dashboard: `${SITE_URL}/dashboard`,
+  };
+  const esc = Object.fromEntries(Object.entries(base).map(([k, v]) => [k, escapeHtml(v)]));
+  return {
+    subject: renderTemplate(ACCEPT_TEMPLATE.subject, base),
+    text: renderTemplate(ACCEPT_TEMPLATE.text, base),
+    html: renderTemplate(ACCEPT_TEMPLATE.html, esc),
+  };
+}
+
+/** Posts one email through EmailJS. Returns an error message, or null on success. */
+async function sendEmail(
   to: string,
   name: string,
-  details: DeclineDetails,
+  email: { subject: string; text: string; html: string },
+  extraParams: Record<string, string> = {},
 ): Promise<string | null> {
   const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
   const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
@@ -139,8 +198,6 @@ export async function sendDeclineEmail(
     return "Email isn't set up: add the VITE_EMAILJS_* keys to .env.";
   }
 
-  const comment = details.comment.trim().slice(0, MAX_DECLINE_COMMENT);
-  const email = declineEmail(name, { reasons: details.reasons, comment });
   try {
     const res = await fetch(EMAILJS_URL, {
       method: "POST",
@@ -155,8 +212,9 @@ export async function sendDeclineEmail(
           reply_to: EMAIL_CONTACT,
           to_name: name,
           subject: email.subject,
-          reasons: details.reasons.map((r) => `- ${DECLINE_REASONS[r]}`).join("\n"),
-          comment,
+          reasons: "",
+          comment: "",
+          ...extraParams,
           message: email.text,
           message_html: email.html,
         },
@@ -168,4 +226,22 @@ export async function sendDeclineEmail(
   } catch (error) {
     return error instanceof Error ? error.message : "EmailJS request failed";
   }
+}
+
+/** Sends the acceptance email. Returns an error message, or null on success. */
+export function sendAcceptEmail(to: string, name: string): Promise<string | null> {
+  return sendEmail(to, name, acceptEmail(name));
+}
+
+/** Sends the decline email. Returns an error message, or null on success. */
+export function sendDeclineEmail(
+  to: string,
+  name: string,
+  details: DeclineDetails,
+): Promise<string | null> {
+  const comment = details.comment.trim().slice(0, MAX_DECLINE_COMMENT);
+  return sendEmail(to, name, declineEmail(name, { reasons: details.reasons, comment }), {
+    reasons: details.reasons.map((r) => `- ${DECLINE_REASONS[r]}`).join("\n"),
+    comment,
+  });
 }
