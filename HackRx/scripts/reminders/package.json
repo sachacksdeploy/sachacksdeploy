@@ -1,0 +1,9 @@
+{
+  "name": "hackrx-reminders",
+  "private": true,
+  "type": "module",
+  "description": "Scheduled email reminders (run by .github/workflows/application-reminders.yml)",
+  "dependencies": {
+    "firebase-admin": "^14.5.0"
+  }
+}
