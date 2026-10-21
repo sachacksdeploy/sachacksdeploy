@@ -42,6 +42,7 @@ import {
 import {
   MAX_DECLINE_COMMENT,
   type DeclineDetails,
+  sendAcceptEmail,
   sendDeclineEmail,
   type DeclineReason,
 } from "@/services/email.service";
@@ -869,7 +870,7 @@ const AdminDashboard = () => {
     if (
       status === "approved" &&
       targets.length > CONFIRM_ABOVE &&
-      !window.confirm(`Accept ${targets.length} applications?`)
+      !window.confirm(`Accept ${targets.length} applications? Each applicant will be emailed.`)
     ) return;
     if (inFlight.current) return; // SECURITY — block a second run while one is in progress
     inFlight.current = true;
@@ -877,12 +878,16 @@ const AdminDashboard = () => {
     const errors = (
       await Promise.all(targets.map(async (r) => {
         const error = await reviewApplication(r.applicationId as string, status, actor);
-        if (error || !decline) return error;
-        // The decline is saved; now tell the applicant why. SECURITY — only
-        // well-formed addresses are sent to (see isSafeEmail).
-        if (!isSafeEmail(r.email)) return `Declined ${r.name}, but they have no usable email address.`;
-        const mailError = await sendDeclineEmail(r.email, r.name, decline);
-        return mailError && `Declined ${r.name}, but the email wasn't sent. ${mailError}`;
+        if (error) return error;
+        // The review is saved; now email the applicant (next steps if accepted,
+        // the reasons if declined). SECURITY — only well-formed addresses are
+        // sent to (see isSafeEmail).
+        const verb = status === "approved" ? "Accepted" : "Declined";
+        if (!isSafeEmail(r.email)) return `${verb} ${r.name}, but they have no usable email address.`;
+        const mailError = decline
+          ? await sendDeclineEmail(r.email, r.name, decline)
+          : await sendAcceptEmail(r.email, r.name);
+        return mailError && `${verb} ${r.name}, but the email wasn't sent. ${mailError}`;
       }))
     ).filter(Boolean) as string[];
     setBusy(false);
@@ -900,7 +905,7 @@ const AdminDashboard = () => {
         title: status === "approved" ? "Accepted" : "Declined",
         description:
           `${plural(targets.length, "application", "applications")} updated` +
-          (decline ? ` · ${plural(targets.length, "email", "emails")} sent` : "") +
+          ` · ${plural(targets.length, "email", "emails")} sent` +
           (skipped ? ` · ${skipped} skipped (no application on file)` : ""),
       });
     }
