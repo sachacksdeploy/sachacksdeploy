@@ -1,5 +1,5 @@
 // Emails everyone who signed up but hasn't submitted an application, every
-// 4 days after they signed up (day 4, 8, 12, …), until applications close.
+// 4 days after they signed up (day 3, 6, 9, 12, …), until applications close.
 //
 // Runs once a day from .github/workflows/application-reminders.yml. It keeps
 // no state: a user is due when the number of whole days since their Firebase
@@ -23,7 +23,7 @@ import { cert, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
-const REMIND_EVERY_DAYS = 4;
+const REMIND_EVERY_DAYS = 3;
 /** Keep in sync with APPLICATIONS_CLOSE in src/pages/Dashboard.tsx. */
 const APPLICATIONS_CLOSE = new Date("2026-11-08T00:00:00-08:00");
 /** Keep in sync with src/services/email.service.ts. */
