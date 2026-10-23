@@ -1,6 +1,6 @@
 name: Application reminders
 
-# Daily; the script decides who is due (every 4 days after signing up).
+# Daily; the script decides who is due (every 3 days after signing up).
 on:
   schedule:
     - cron: "0 17 * * *" # 10am Pacific (PDT) / 9am (PST)
