@@ -156,6 +156,7 @@ const sponsorTiers = [
     label: "Jubilee",
     items: [
       { name: "M.S. Program of Medical Device Development Program", logo: "/sponsors/medical-device.png", url: "https://bme.ucdavis.edu/graduate/medical-device" },
+      { name: "Abridge", logo: "/sponsors/abridge.png", url: "https://www.abridge.com/" },
     ],
   },
   {

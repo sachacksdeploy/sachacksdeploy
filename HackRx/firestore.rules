@@ -242,12 +242,16 @@ service cloud.firestore {
         && request.resource.data.get('app_id', null) == null
         && listOr(request.resource.data.get('invitations', null)).size() == 0;
 
+      // The admin check comes before the owner checks so an admin write (team
+      // autofill moves many users in one transaction) costs a single get() of the
+      // admin's own doc, instead of extra lookups of each user's old team. Rules
+      // allow at most 20 get() lookups per transaction.
       allow update: if signedIn()
         && !changedKeys().hasAny(['admin', 'user_id'])
         && (selfUpdateOk()
+            || (isAdmin() && applicationReviewOk())
             || removedByOwner()
-            || invitationChangedByOwner()
-            || (isAdmin() && applicationReviewOk()));
+            || invitationChangedByOwner());
 
       allow delete: if false;
     }

@@ -1,5 +1,5 @@
 // Emails everyone who signed up but hasn't submitted an application, every
-// 4 days after they signed up (day 3, 6, 9, 12, …), until applications close.
+// 3 days after they signed up (day 3, 6, 9, …), until applications close.
 //
 // Runs once a day from .github/workflows/application-reminders.yml. It keeps
 // no state: a user is due when the number of whole days since their Firebase

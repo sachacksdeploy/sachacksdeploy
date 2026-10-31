@@ -36,6 +36,7 @@ import {
   idOf,
   leaveTeamWrites,
   soloTeam,
+  strList,
 } from "@/services/team.service";
 
 /**
@@ -333,4 +334,48 @@ export async function issueCertification(
       ? error.message
       : "Unable to issue certification";
   }
+}
+/**
+ * Admin edit of one team: its leader (the `owner` field, who can invite,
+ * remove members and toggle autofill) and its autofill setting.
+ *
+ * The new leader must already be a member. Read inside a transaction so a
+ * member who leaves at the same moment can't be made leader of a team they're
+ * no longer on.
+ */
+export async function updateTeamSettings(
+  teamId: string,
+  changes: { owner?: string; autofill?: boolean },
+): Promise<string | null> {
+  try {
+    await runTransaction(db, async (tx) => {
+      const ref = doc(db, TEAMS, teamId);
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists()) throw new Error("That team no longer exists. Refresh to see the latest teams.");
+      const update: Record<string, unknown> = {};
+      if (changes.owner !== undefined) {
+        if (!strList(snapshot.data().members).includes(changes.owner)) {
+          throw new Error("The new leader has to be on the team. Refresh and try again.");
+        }
+        update.owner = changes.owner;
+      }
+      if (changes.autofill !== undefined) update.autofill = changes.autofill;
+      if (Object.keys(update).length) tx.update(ref, update);
+    });
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : "Unable to update the team";
+  }
+}
+
+/** Turns autofill on or off for several teams. Returns one message per team that failed. */
+export async function setTeamsAutofill(teamIds: string[], autofill: boolean): Promise<string[]> {
+  const results = await Promise.allSettled(
+    teamIds.map((id) => updateDoc(doc(db, TEAMS, id), { autofill })),
+  );
+  return results.flatMap((r, i) =>
+    r.status === "rejected"
+      ? [`Team ${teamIds[i]}: ${r.reason instanceof Error ? r.reason.message : "update failed"}`]
+      : [],
+  );
 }

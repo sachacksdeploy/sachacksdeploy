@@ -19,6 +19,7 @@ import {
   getDocs,
   limit,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -249,6 +250,62 @@ await base();
 await test("owner toggles autofill", () => assertSucceeds(updateDoc(doc(as("a"), "teams/TA"), { autofill: true })));
 await test("member can't toggle autofill", () => assertFails(updateDoc(doc(as("c"), "teams/TA"), { autofill: false })));
 await test("no other collections", () => assertFails(setDoc(doc(as("a"), "demos/x"), { a: 1 })));
+
+// ---- admin autofill (autofill.service.ts) -----------------------------------
+// One transaction per write group; each user write must cost only the admin
+// lookup, so a group with several users stays under the 20 get() budget.
+const autofillSeed = () => seed(
+  {
+    boss: user("boss", { admin: true }),
+    s: user("s", { team_id: "TS", invitations: ["TB", "TC"] }),
+    b: user("b", { team_id: "TB" }),
+    c: user("c", { team_id: "TC" }),
+    ...Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`m${i}`, user(`m${i}`, { team_id: `M${i}` })])),
+  },
+  {
+    TS: team("TS", "s", { autofill: true }),
+    TB: team("TB", "b", { pending: ["s"] }),
+    TC: team("TC", "c", { pending: ["s"] }),
+    ...Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`M${i}`, team(`M${i}`, `m${i}`, { autofill: true })])),
+  },
+);
+
+await autofillSeed();
+await test("admin autofill: solo joins an inviter, other invite declined, solo team deleted", async () => {
+  const db = as("boss");
+  await assertSucceeds(runTransaction(db, async (tx) => {
+    for (const p of ["users/s", "teams/TS", "teams/TB", "teams/TC"]) await tx.get(doc(db, p));
+    tx.update(doc(db, "teams/TB"), { members: ["b", "s"], pending: [] });
+    tx.update(doc(db, "teams/TC"), { members: ["c"], pending: [] });
+    tx.delete(doc(db, "teams/TS"));
+    tx.update(doc(db, "users/s"), { team_id: "TB", invitations: [] });
+  }));
+});
+
+await autofillSeed();
+await test("admin autofill: merging 12 solo teams in one transaction (team_id-only user writes)", async () => {
+  const db = as("boss");
+  await assertSucceeds(runTransaction(db, async (tx) => {
+    for (let i = 0; i < 12; i++) await tx.get(doc(db, `users/m${i}`));
+    for (let g = 0; g < 12; g += 3) {
+      tx.update(doc(db, `teams/M${g}`), { members: [`m${g}`, `m${g + 1}`, `m${g + 2}`], pending: [] });
+      for (const k of [g + 1, g + 2]) {
+        tx.delete(doc(db, `teams/M${k}`));
+        tx.update(doc(db, `users/m${k}`), { team_id: `M${g}`, invitations: [] });
+      }
+    }
+  }));
+});
+
+await autofillSeed();
+await test("non-admin can't run autofill writes", async () => {
+  const db = as("b");
+  const batch = writeBatch(db);
+  batch.update(doc(db, "teams/M0"), { members: ["m0", "m1"] });
+  batch.delete(doc(db, "teams/M1"));
+  batch.update(doc(db, "users/m1"), { team_id: "M0" });
+  await assertFails(batch.commit());
+});
 
 console.log(`\n${passed} passed${process.exitCode ? ", some FAILED" : ""}`);
 await env.cleanup();
