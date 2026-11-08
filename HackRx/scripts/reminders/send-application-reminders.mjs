@@ -100,7 +100,12 @@ async function sendEmail(to, name, email) {
       },
     }),
   });
-  if (!res.ok) throw new Error(`EmailJS returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) {
+    const error = new Error(`EmailJS returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    // 401/403 is account setup (API access, keys), not this recipient: every send would fail.
+    error.fatal = res.status === 401 || res.status === 403;
+    throw error;
+  }
 }
 
 async function main() {
@@ -153,6 +158,14 @@ async function main() {
     } catch (error) {
       failed++;
       console.error(`failed ${u.uid}: ${error.message}`);
+      if (error.fatal) {
+        console.error(
+          "Stopping: fix the EmailJS account (Account → Security → allow API for non-browser " +
+            "applications) and the EMAILJS_PRIVATE_KEY secret, then re-run.",
+        );
+        process.exitCode = 1;
+        return;
+      }
     }
     await new Promise((r) => setTimeout(r, 1100)); // EmailJS allows ~1 request/second
   }
