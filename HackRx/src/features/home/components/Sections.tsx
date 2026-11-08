@@ -139,7 +139,7 @@ const timeline = [
     )
   },
   {
-    date: "November 8", what: "Applications close", body: "Last call — applications shut at end of day.", icon: (
+    date: "November 12", what: "Applications close", body: "Last call — applications shut at end of day.", icon: (
       <svg className="icon" viewBox="0 0 100 100" aria-hidden="true"><circle cx="35" cy="38" r="12" fill="none" stroke="var(--ink-black)" strokeWidth="3.4" /><circle cx="65" cy="38" r="12" fill="none" stroke="var(--ink-black)" strokeWidth="3.4" /><path d="M18 78c2-14 10-22 17-22M82 78c-2-14-10-22-17-22" stroke="var(--ink-black)" strokeWidth="3.4" {...S} /></svg>
     )
   },
@@ -157,6 +157,13 @@ const sponsorTiers = [
     items: [
       { name: "M.S. Program of Medical Device Development Program", logo: "/sponsors/medical-device.png", url: "https://bme.ucdavis.edu/graduate/medical-device" },
       { name: "Abridge", logo: "/sponsors/abridge.png", url: "https://www.abridge.com/" },
+    ],
+  },
+  {
+    key: "compute",
+    label: "Compute",
+    items: [
+      { name: "Base44", logo: "/sponsors/base44.png", url: "https://base44.com/" },
     ],
   },
   {
@@ -181,7 +188,7 @@ const sponsorTiers = [
 const faqs = [
   { q: "When and where?", a: "Betty Irene Moore (Link Map) in Sacramento, CA. Date is Sunday, Novemeber 15th" },
   { q: "Who can attend?", a: "Any college student or recent graduate is welcome to participate in SacHacks!" },
-  { q: "When is the application deadline?", a: "Friday, November 8th at 11:59pm" },
+  { q: "When is the application deadline?", a: "Thursday, November 12th at 11:59pm" },
   { q: "What is a hackathon?", a: "A hackathon is a 24-hour event where students collaborate to build creative projects and compete for prizes." },
   { q: "What is the maximum team size?", a: "Teams should be of 1-3 members. No more than 3 allowed on a single team." },
 ];
