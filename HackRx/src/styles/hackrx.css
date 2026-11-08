@@ -4184,7 +4184,7 @@ html.low-end .page-decor .decor-star {
    ========================================================================== */
 .sponsor-pyramid {
   --inset: 28;
-  --H: 489;
+  --H: 671;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4245,24 +4245,31 @@ html.low-end .page-decor .decor-star {
 
 .tier-jubilee {
   --y0: 0;
-  --y1: 190;
-  --chip-max: 340px;
+  --y1: 160;
+  --chip-max: 300px;
   --band-bg: linear-gradient(180deg, #d4a017, #9a6f00);
+}
+
+.tier-compute {
+  --y0: 172;
+  --y1: 332;
+  --chip-max: 300px;
+  --band-bg: linear-gradient(180deg, #3017d4, #00159a);
 }
 
 /* dark yellow */
 .tier-platinum {
-  --y0: 202;
-  --y1: 352;
-  --chip-max: 250px;
+  --y0: 344;
+  --y1: 464;
+  --chip-max: 225px;
   --band-bg: linear-gradient(180deg, #dde1e8, #a9b0bb);
 }
 
 /* silver */
 .tier-gold {
-  --y0: 364;
-  --y1: 489;
-  --chip-max: 230px;
+  --y0: 476;
+  --y1: 576;
+  --chip-max: 200px;
   --band-bg: linear-gradient(180deg, #ffe033, #ffb700);
 }
 
