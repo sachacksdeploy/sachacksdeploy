@@ -30,7 +30,7 @@ import { auth, db } from "@/integrations/firebase/client";
 
 export const signUpSchema = z
   .object({
-    email: z.string().trim().email("Please enter a valid email").max(255),
+    email: z.string().trim().pipe(z.email("Please enter a valid email").max(255)),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
@@ -48,7 +48,7 @@ export const loginSchema = z.object({
 });
 
 export const forgotSchema = z.object({
-  email: z.string().trim().email("Please enter a valid email").max(255),
+  email: z.string().trim().pipe(z.email("Please enter a valid email").max(255)),
 });
 
 export const profileSchema = z.object({

@@ -231,7 +231,7 @@ export function followUpIssues(v: ApplicationValues): { field: keyof Application
 
 export const applicationSchema = baseSchema.superRefine((values, ctx) => {
   followUpIssues(values).forEach(({ field, message }) =>
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: [field], message }),
+    ctx.addIssue({ code: "custom", path: [field], message }),
   );
 });
 
