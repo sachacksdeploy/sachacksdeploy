@@ -13,10 +13,10 @@ import { X } from "lucide-react";
 const APPEAL_VIDEO = "https://www.youtube.com/embed/8RFbx4lK-Qs?si=2Spwih1i9thvaOdt";
 const APPEAL_EMAIL = "status@sachacks.io";
 
-// Midnight Pacific at the start of each day. November dates use PST (UTC-8):
+// Pacific time. November dates use PST (UTC-8):
 // daylight saving ends Nov 1, 2026.
-const APPLICATIONS_CLOSE = "2026-11-08T00:00:00-08:00";
-const EVENT_START = "2026-11-15T00:00:00-08:00";
+const APPLICATIONS_CLOSE = "2026-11-12T23:59:00-08:00"; // Thursday 11:59pm
+const EVENT_START = "2026-11-15T00:00:00-08:00"; // midnight at the start of the day
 
 /** "loading" until Firestore answers; null means the user hasn't applied. */
 type StatusState = ApplicationStatus | null | "loading";
