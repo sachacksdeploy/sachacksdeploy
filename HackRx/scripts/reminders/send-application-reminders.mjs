@@ -25,7 +25,7 @@ import { getFirestore } from "firebase-admin/firestore";
 
 const REMIND_EVERY_DAYS = 3;
 /** Keep in sync with APPLICATIONS_CLOSE in src/pages/Dashboard.tsx. */
-const APPLICATIONS_CLOSE = new Date("2026-11-08T00:00:00-08:00");
+const APPLICATIONS_CLOSE = new Date("2026-11-12T23:59:00-08:00");
 /** Keep in sync with src/services/email.service.ts. */
 const EVENT_NAME = "SacHacks VIII";
 const CONTACT = "status@sachacks.io";
@@ -64,7 +64,7 @@ You signed up for ${EVENT_NAME} but haven't submitted your application yet. It o
 
 ${applyUrl}
 
-Applications close ${closesOn}, so don't wait too long! Once you're accepted you can form a team and invite friends to join you.
+Applications close ${closesOn} at 11:59pm, so don't wait too long! Once you're accepted you can form a team and invite friends to join you.
 
 Questions? Reach us at ${CONTACT}.
 
@@ -72,7 +72,7 @@ Questions? Reach us at ${CONTACT}.
     html: `<p>Hi ${escapeHtml(n)},</p>
 <p>You signed up for <strong>${EVENT_NAME}</strong> but haven't submitted your application yet. It only takes a few minutes:</p>
 <p><a href="${escapeHtml(applyUrl)}">Finish your application</a></p>
-<p>Applications close <strong>${closesOn}</strong>, so don't wait too long! Once you're accepted you can form a team and invite friends to join you.</p>
+<p>Applications close <strong>${closesOn} at 11:59pm</strong>, so don't wait too long! Once you're accepted you can form a team and invite friends to join you.</p>
 <p>Questions? Reach us at <a href="mailto:${CONTACT}">${CONTACT}</a>.</p>
 <p>— The ${EVENT_NAME} team</p>`,
   };
@@ -113,6 +113,13 @@ async function main() {
   if (now >= APPLICATIONS_CLOSE) {
     console.log("Applications are closed; no reminders sent.");
     return;
+  }
+
+  // Check config before reading users, so a missing secret fails once, not once per user.
+  if (!DRY_RUN) {
+    for (const name of ["EMAILJS_SERVICE_ID", "EMAILJS_TEMPLATE_ID", "EMAILJS_PUBLIC_KEY", "EMAILJS_PRIVATE_KEY"]) {
+      requireEnv(name);
+    }
   }
 
   const app = initializeApp({ credential: cert(JSON.parse(requireEnv("FIREBASE_SERVICE_ACCOUNT"))) });
