@@ -19,9 +19,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { fetchProfile } from "@/services/auth.service";
+import { showClosedNotice } from "@/lib/closed-notice";
 import {
   ACADEMIC_STANDINGS,
   ALREADY_APPLIED,
+  APPLICATIONS_CLOSED,
   AGE_RANGES,
   CODE_OF_CONDUCT_URL,
   DIETARY_NONE,
@@ -416,6 +418,11 @@ const SignupPage = () => {
   const onSubmit = async (values: ApplicationValues) => {
     setBusy(true);
     const error = await submitApplication(values);
+    if (error === APPLICATIONS_CLOSED) {
+      showClosedNotice("submit");
+      navigate("/dashboard", { replace: true });
+      return;
+    }
     if (error === ALREADY_APPLIED) {
       toast({ title: "Already applied", description: "Your application is already in. Check its status in the Hacker Hub." });
       navigate("/dashboard", { replace: true });

@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import type { ReactElement } from "react";
+import { useEffect, type ReactElement } from "react";
 import Home from "@/pages/Home";
 import NotFound from "@/pages/NotFound";
 import Dashboard from "@/pages/Dashboard";
@@ -10,6 +10,8 @@ import { useAuth } from "@/context/auth-context";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAcceptance } from "@/hooks/useAcceptance";
 import SignupPage from "@/pages/SignupPage";
+import { useApplicationsOpen } from "@/config/deadlines";
+import { showClosedNotice } from "@/lib/closed-notice";
 
 /** Gates the hacker hub behind an active session. */
 const Protected = ({ children }: { children: ReactElement }) => {
@@ -29,6 +31,15 @@ const AcceptedOnly = ({ children }: { children: ReactElement }) => {
   const { accepted, loading } = useAcceptance();
   if (loading) return null;
   return accepted ? children : <Navigate to="/dashboard" replace />;
+};
+
+/** The application form, only until the deadline (then back to the Hacker Hub). */
+const ApplicationsOpenOnly = ({ children }: { children: ReactElement }) => {
+  const open = useApplicationsOpen();
+  useEffect(() => {
+    if (!open) showClosedNotice("apply");
+  }, [open]);
+  return open ? children : <Navigate to="/dashboard" replace />;
 };
 
 /** Admins are organisers, not participants — send them to the admin workspace. */
@@ -87,7 +98,9 @@ export const AppRoutes = () => (
       path="/apply"
       element={
         <Protected>
-          <SignupPage />
+          <ApplicationsOpenOnly>
+            <SignupPage />
+          </ApplicationsOpenOnly>
         </Protected>
       }
     />

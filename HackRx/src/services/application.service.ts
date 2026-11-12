@@ -18,6 +18,7 @@ import { z } from "zod";
 import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 
 import { auth, db } from "@/integrations/firebase/client";
+import { APPLICATIONS_CLOSE_LABEL, applicationsOpen } from "@/config/deadlines";
 
 /* ------------------------------------------------------------------ */
 /* Answer options                                                      */
@@ -242,6 +243,8 @@ export const applicationSchema = baseSchema.superRefine((values, ctx) => {
 export type ApplicationStatus = "pending" | "approved" | "rejected";
 
 export const ALREADY_APPLIED = "You've already submitted an application.";
+export const APPLICATIONS_CLOSED =
+  `Applications closed on ${APPLICATIONS_CLOSE_LABEL}, so new applications can't be submitted.`;
 
 /**
  * The status of this user's application, or null if they haven't applied
@@ -269,6 +272,7 @@ export async function fetchApplicationStatus(userId: string): Promise<Applicatio
 export async function submitApplication(values: ApplicationValues): Promise<string | null> {
   const user = auth.currentUser;
   if (!user) return "Your session has expired. Please log in again and resubmit.";
+  if (!applicationsOpen()) return APPLICATIONS_CLOSED;
 
   // Answers to follow-up questions that were later hidden are dropped.
   const institutionOther = values.institution === INSTITUTION_OTHER ? values.institution_other : "";
@@ -300,6 +304,8 @@ export async function submitApplication(values: ApplicationValues): Promise<stri
     console.error("submitApplication failed:", code, error);
     if (code === "permission-denied") {
       if (await fetchApplicationStatus(user.uid)) return ALREADY_APPLIED;
+      // firestore.rules refuse submissions after the deadline (in case the device clock is off).
+      if (!applicationsOpen(Date.now() + 5 * 60_000)) return APPLICATIONS_CLOSED;
       return import.meta.env.DEV
         ? "Firestore denied the write (permission-denied). The rules in firestore.rules are probably not deployed: paste them into Firebase console → Firestore Database → Rules and publish."
         : "We couldn't save your application. Please try again, or contact the organisers if this keeps happening.";

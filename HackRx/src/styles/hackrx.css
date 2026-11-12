@@ -2683,6 +2683,42 @@ a {
   margin-top: 4px !important;
 }
 
+/* short notices ("applications closed"): size to the content, never scroll */
+.venom-dialog.venom-notice {
+  overflow: hidden;
+  min-height: 0;
+  gap: 22px;
+  padding: 30px 28px 30px !important;
+}
+
+.venom-dialog.venom-notice .venom-title {
+  padding-right: 24px; /* clear the close (X) button */
+  line-height: 1.05;
+}
+
+.venom-dialog.venom-notice .venom-notice-body {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--cream);
+  opacity: .92;
+}
+
+.venom-dialog.venom-notice .venom-submit {
+  margin-top: 0 !important;
+}
+
+@media (max-width: 640px) {
+  .venom-dialog.venom-notice {
+    gap: 18px;
+    padding: 24px 20px 24px !important;
+  }
+
+  .venom-dialog.venom-notice .venom-notice-body {
+    font-size: 14px;
+  }
+}
+
 /* submit button: the site's comic CTA language */
 .venom-submit {
   position: relative;

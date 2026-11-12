@@ -11,6 +11,7 @@ import {
   GoogleAuthProvider,
   type User,
   createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -27,6 +28,10 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "@/integrations/firebase/client";
+import { applicationsOpen, REGISTRATION_CLOSED_MESSAGE } from "@/config/deadlines";
+
+/** Firebase's error when sign-ups are turned off in the console. */
+const SIGNUPS_DISABLED = "auth/admin-restricted-operation";
 
 export const signUpSchema = z
   .object({
@@ -104,6 +109,9 @@ export async function ensureUserDoc(user: User): Promise<void> {
  * Creates a Firebase Authentication account and its users/{uid} document.
  */
 export async function signUp(values: SignUpValues): Promise<string | null> {
+  // Registration closes with applications.
+  if (!applicationsOpen()) return REGISTRATION_CLOSED_MESSAGE;
+
   try {
     const credential = await createUserWithEmailAndPassword(
       auth,
@@ -114,6 +122,7 @@ export async function signUp(values: SignUpValues): Promise<string | null> {
     return null;
   } catch (error) {
     const e = error as { code?: string; message?: string };
+    if (e.code === SIGNUPS_DISABLED) return REGISTRATION_CLOSED_MESSAGE;
     console.error("Sign-up failed:", e.code, e.message, error);
     return e.message ?? "Unable to create your account";
   }
@@ -166,6 +175,13 @@ export async function signInWithGoogle(): Promise<string | null> {
     provider.setCustomParameters({ prompt: "select_account" });
     const result = await signInWithPopup(auth, provider);
 
+    // Google creates the account on first sign-in. After the deadline, undo
+    // that for brand-new accounts; existing hackers sign in as usual.
+    if (!applicationsOpen() && getAdditionalUserInfo(result)?.isNewUser) {
+      await result.user.delete().catch(() => firebaseSignOut(auth));
+      return REGISTRATION_CLOSED_MESSAGE;
+    }
+
     // Create the profile only on first Google sign-in. The user is already
     // signed in at this point, so a failure here is logged, not surfaced.
     await ensureUserDoc(result.user).catch((e) =>
@@ -179,6 +195,7 @@ export async function signInWithGoogle(): Promise<string | null> {
     if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
       return "";
     }
+    if (code === SIGNUPS_DISABLED) return REGISTRATION_CLOSED_MESSAGE;
     console.error("Google sign-in failed:", error);
     return error instanceof Error
       ? error.message

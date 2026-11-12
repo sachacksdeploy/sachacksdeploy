@@ -6,6 +6,8 @@ import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { useGlitchTriggers } from "@/hooks/useGlitchTriggers";
 import type { AuthDialogMode } from "@/context/registration-context";
+import { REGISTRATION_CLOSED_MESSAGE, useApplicationsOpen } from "@/config/deadlines";
+import { showClosedNotice } from "@/lib/closed-notice";
 import {
   signUpSchema,
   loginSchema,
@@ -85,7 +87,12 @@ export const AuthDialog = ({ open, mode, onOpenChange, onModeChange }: AuthDialo
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const submitTriggers = useGlitchTriggers();
-  const copy = COPY[mode];
+  // After the deadline the sign-up form is replaced by a "closed" notice.
+  const registrationOpen = useApplicationsOpen();
+  const copy =
+    mode === "signup" && !registrationOpen
+      ? { title: "Applications closed", sub: "Thanks for your interest in HackRx!", cta: "Log in" }
+      : COPY[mode];
 
   const signupForm = useForm<SignUpValues>({
     resolver: zodResolver(signUpSchema),
@@ -114,6 +121,12 @@ export const AuthDialog = ({ open, mode, onOpenChange, onModeChange }: AuthDialo
     const error = await signInWithGoogle();
     setBusy(false);
     if (error === "") return; // popup closed by the user
+    if (error === REGISTRATION_CLOSED_MESSAGE) {
+      // A new Google account after the deadline.
+      onOpenChange(false);
+      showClosedNotice("signup");
+      return;
+    }
     if (error) {
       toast({ title: "Google sign-in failed", description: error, variant: "destructive" });
       return;
@@ -126,6 +139,11 @@ export const AuthDialog = ({ open, mode, onOpenChange, onModeChange }: AuthDialo
     setBusy(true);
     const error = await signUp(values);
     setBusy(false);
+    if (error === REGISTRATION_CLOSED_MESSAGE) {
+      onOpenChange(false);
+      showClosedNotice("signup");
+      return;
+    }
     if (error) {
       toast({ title: "Sign up failed", description: error, variant: "destructive" });
       return;
@@ -184,7 +202,21 @@ export const AuthDialog = ({ open, mode, onOpenChange, onModeChange }: AuthDialo
           <DialogDescription className="opacity-80">{copy.sub}</DialogDescription>
         </DialogHeader>
 
-        {mode === "signup" && (
+        {mode === "signup" && !registrationOpen && (
+          <div className="space-y-4 pt-2">
+            <p className="opacity-90">{REGISTRATION_CLOSED_MESSAGE}</p>
+            <Button
+              type="button"
+              onClick={() => onModeChange("login")}
+              {...submitTriggers}
+              className="venom-submit"
+            >
+              {copy.cta}
+            </Button>
+          </div>
+        )}
+
+        {mode === "signup" && registrationOpen && (
           <Form {...signupForm}>
             <form onSubmit={signupForm.handleSubmit(onSignUp)} className="space-y-4 pt-2">
               <FormField
@@ -273,8 +305,12 @@ export const AuthDialog = ({ open, mode, onOpenChange, onModeChange }: AuthDialo
               <GoogleButton onClick={handleGoogle} busy={busy} />
               <p className="venom-switch">
                 <button type="button" onClick={() => onModeChange("forgot")}>Forgot password?</button>
-                <span aria-hidden="true"> · </span>
-                <button type="button" onClick={() => onModeChange("signup")}>Register now</button>
+                {registrationOpen && (
+                  <>
+                    <span aria-hidden="true"> · </span>
+                    <button type="button" onClick={() => onModeChange("signup")}>Register now</button>
+                  </>
+                )}
               </p>
             </form>
           </Form>

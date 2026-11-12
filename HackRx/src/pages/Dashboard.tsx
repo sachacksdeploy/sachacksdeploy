@@ -9,14 +9,11 @@ import { useGlitchTriggers } from "@/hooks/useGlitchTriggers";
 import { fetchApplicationStatus, type ApplicationStatus } from "@/services/application.service";
 import { useAcceptance } from "@/hooks/useAcceptance";
 import { X } from "lucide-react";
+import { APPLICATIONS_CLOSE, EVENT_START, useApplicationsOpen } from "@/config/deadlines";
+import { showClosedNoticeOnce } from "@/lib/closed-notice";
 
 const APPEAL_VIDEO = "https://www.youtube.com/embed/8RFbx4lK-Qs?si=2Spwih1i9thvaOdt";
 const APPEAL_EMAIL = "status@sachacks.io";
-
-// Pacific time. November dates use PST (UTC-8):
-// daylight saving ends Nov 1, 2026.
-const APPLICATIONS_CLOSE = "2026-11-12T23:59:00-08:00"; // Thursday 11:59pm
-const EVENT_START = "2026-11-15T00:00:00-08:00"; // midnight at the start of the day
 
 /** "loading" until Firestore answers; null means the user hasn't applied. */
 type StatusState = ApplicationStatus | null | "loading";
@@ -34,6 +31,8 @@ const Dashboard = () => {
   const [status, setStatus] = useState<StatusState>("loading");
   // Accepted = users/{uid}.team_id has a value. Picks which dashboard to show.
   const { accepted, loading: acceptanceLoading } = useAcceptance();
+  // Flips to false at the application deadline (Friday 12:00am).
+  const applicationsOpen = useApplicationsOpen();
 
   useEffect(() => {
     if (!user) return;
@@ -51,6 +50,11 @@ const Dashboard = () => {
   const loading = status === "loading" || acceptanceLoading;
   const submitted = status !== "loading" && status !== null;
   const display = STATUS_DISPLAY[status === "loading" || status === null ? "none" : status];
+
+  // Missed the deadline without applying: tell them once per visit.
+  useEffect(() => {
+    if (!loading && !accepted && !submitted && !applicationsOpen) showClosedNoticeOnce("missed");
+  }, [loading, accepted, submitted, applicationsOpen]);
 
   const navigate = useNavigate();
   const applyTriggers = useGlitchTriggers();
@@ -122,12 +126,16 @@ const Dashboard = () => {
   const waitingView = (
     <>
       <p className="chapter-sub">
-        {submitted ? "Thanks for applying! Your status updates here." : "Applications open! Apply now!"}
+        {submitted
+          ? "Thanks for applying! Your status updates here."
+          : applicationsOpen
+            ? "Applications open! Apply now!"
+            : "Applications are now closed. Thanks for your interest in HackRx!"}
       </p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
         {/* Same pill style + glitch hover as the nav's Hacker Hub button, sized up */}
         {/* Only offer Apply once we know they haven't — one application per account. */}
-        {!submitted && (
+        {!submitted && applicationsOpen && (
           <button
             type="button"
             className="nav-cta cursor-pointer !px-7 !py-3 !text-base"
@@ -167,8 +175,9 @@ const Dashboard = () => {
         <span className="eyebrow">Hacker Hub</span>
         <h1 className="chapter-title">Welcome, {name}</h1>
         {loading ? loadingView : accepted ? acceptedView : waitingView}
-        {/* Not accepted yet: count down to the application deadline. Accepted: to the event. */}
-        {!loading && (accepted
+        {/* Before the deadline, applicants count down to it. Accepted hackers,
+            and everyone once applications close, count down to the event. */}
+        {!loading && (accepted || !applicationsOpen
           ? <Countdown label="Event starts in" target={EVENT_START} />
           : <Countdown label="Applications close in" target={APPLICATIONS_CLOSE} />)}
         {/* Only shown once the user's application has come back rejected. */}

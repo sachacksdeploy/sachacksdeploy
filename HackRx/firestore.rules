@@ -24,8 +24,8 @@ rules_version = '2';
 // users.invitations <-> teams.pending), so every flow writes both docs in one
 // batch/transaction and each side checks the other with getAfter().
 //
-//   sign up        user creates own doc: user_id, email, admin=false
-//   apply          user sets app_id + application once (status "pending")
+//   sign up        user creates own doc: user_id, email, admin=false (until the deadline)
+//   apply          user sets app_id + application once (status "pending", until the deadline)
 //   accept (admin) admin sets team_id and creates a solo team owned by the user
 //   invite         owner adds uid to pending + teamId to that user's invitations
 //                  (invitee must be accepted, team can't exceed MAX_TEAM_SIZE)
@@ -44,6 +44,12 @@ service cloud.firestore {
 
     function maxTeamSize() {
       return 3; // members + pending, owner included. Keep in sync with MAX_TEAM_SIZE in team.service.ts
+    }
+
+    // Fri Nov 13, 2026 12:00am PST (2026-11-13T08:00:00Z). No new accounts or
+    // applications from this moment on. Keep in sync with APPLICATIONS_CLOSE in src/config/deadlines.ts
+    function applicationsOpen() {
+      return request.time < timestamp.value(1794556800000);
     }
 
     function signedIn() {
@@ -128,7 +134,8 @@ service cloud.firestore {
       function applicationSubmitOk() {
         let nxt = request.resource.data;
         return !changedKeys().hasAny(['app_id', 'application'])
-          || (resource.data.get('app_id', null) == null
+          || (applicationsOpen()
+              && resource.data.get('app_id', null) == null
               && resource.data.get('application', null) == null
               && nxt.app_id is string
               && nxt.app_id.size() > 0
@@ -230,8 +237,9 @@ service cloud.firestore {
       allow list: if signedIn()
         && (isAdmin() || (myTeamId() != null && request.query.limit <= 1));
 
-      // Sign-up: your own doc with user_id, email and admin=false.
+      // Sign-up: your own doc with user_id, email and admin=false. Closes with applications.
       allow create: if signedIn()
+        && applicationsOpen()
         && uid == me()
         && request.resource.data.keys().hasAll(['user_id', 'email', 'admin'])
         && request.resource.data.keys().hasOnly(['user_id', 'email', 'admin', 'team_id', 'app_id', 'invitations'])

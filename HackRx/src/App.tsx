@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import AppRoutes from "@/routes/AppRoutes";
 import { AuthProvider } from "@/context/auth-context";
+import { ApplicationsClosedNotice } from "@/features/auth/components/ApplicationsClosedNotice";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +19,7 @@ const App = () => {
         <BrowserRouter>
           <AuthProvider>
             <AppRoutes />
+            <ApplicationsClosedNotice />
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
