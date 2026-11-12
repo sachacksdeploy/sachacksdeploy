@@ -6,6 +6,11 @@ import {
   comicCloudGrey,
   comicCloudOutline,
   comicStarYellow,
+  prize1,
+  prize2,
+  prize3,
+  prize4,
+  prize5,
 } from "@/assets/images";
 
 const S = { fill: "none", strokeLinecap: "round", strokeLinejoin: "round" } as const;
@@ -125,12 +130,14 @@ const ShieldIcon = (
 /* --------------------------------- data ---------------------------------- */
 
 const prizes = [
-  { place: "1st Place", amount: "Best Translational Science", body: "For the team moving discovery to bedside fastest." },
-  { place: "1st Place", amount: "Best Clinical Impact", body: "Best Clinical Science Prize — care that measurably improves outcomes." },
-  { place: "1st Place", amount: "Best Biotech Innovation", body: "Hardware, wetware, and data pushed somewhere new." },
-  { place: "1st Place", amount: "Health Equity Award", body: "For the build that widens access to care." },
-  { place: "1st Place", amount: "Best Interdisciplinary Hack", body: "Best overall hack across disciplines." },
+  { place: "1st Place", amount: "Best Translational Science", body1: "For the team moving discovery to bedside fastest.", body2: "Prize: Bose Quietcomfort SC Headphones", sponsor: "Sponsored by the BME Department at UC Davis" },
+  { place: "1st Place", amount: "Best Clinical Impact", body1: "Care that measurably improves outcomes.", body2: "Prize: Samsung 34\" ViewFinity UWQHD 120Hz Ultra-Wide Curved Monitor", sponsor: "Sponsored by Abridge" },
+  { place: "1st Place", amount: "Best Biotech Innovation", body1: "Hardware, wetware, and data pushed somewhere new.", body2: "Prize: Sandisk Extreme Go Portable SSD (1TB)", sponsor: "Sponsored by Base44" },
+  { place: "1st Place", amount: "Health Equity Award", body1: "For the build that widens access to care.", body2: "Prize: Bose Soundlink Home Bluetooth Speaker", sponsor: "Sponsored by the Betty Irene Moore School of Nursing" },
+  { place: "1st Place", amount: "Best Interdisciplinary Hack", body1: "Best overall hack across disciplines.", body2: "Chance to win Atari Gamestation Go Handheld Gaming Console Bundle with Gamepad, Gold", sponsor: "Sponsored by the UC Davis College of L&S and MBA Program" },
 ];
+
+const prizeImages = [prize1, prize2, prize3, prize4, prize5];
 
 const timeline = [
   {
@@ -304,7 +311,7 @@ export const Content = () => {
         </div>
       </section>
 
-      <Chapter id="prizes" title="Track & Prizes" sub="Five first-place awards (prizes to be revealed soon)" />
+      <Chapter id="prizes" title="Track & Prizes" sub="Five first-place awards" />
 
 
       {prizes.map((p, i) => (
@@ -313,13 +320,17 @@ export const Content = () => {
             <p className="spotlight-index">{String(i + 1).padStart(2, "0")}</p>
             <h3>{p.amount}</h3>
             <p className="spotlight-tag">{p.place}</p>
-            <p>{p.body}</p>
+            <p>{p.body1}</p>
+            <p>{p.body2}</p>
+            <p>{p.sponsor}</p>
           </div>
           <div className="spotlight-art">
-            <svg className="icon" viewBox="0 0 100 100" aria-hidden="true">
-              <path d="M50 8 L61 38 L93 38 L67 57 L77 88 L50 68 L23 88 L33 57 L7 38 L39 38 Z" fill="none" stroke="var(--crimson)" strokeWidth="3.4" strokeLinejoin="round" />
-              <text x="50" y="60" textAnchor="middle" fontFamily="var(--comic-display)" fontSize="28" fill="var(--ink-black)">{i + 1}</text>
-            </svg>
+            <img
+              className="icon"
+              src={prizeImages[i]}
+              alt={`${p.place} prize`}
+              loading="lazy"
+            />
           </div>
         </section>
       ))}

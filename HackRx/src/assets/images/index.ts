@@ -18,12 +18,6 @@ import comicStarYellow from "./comic-star-yellow.png";
 
 import mascotPurpleMain from "./mascot-purple-main.png";
 import mascotYellowMain from "./mascot-yellow-main.png";
-import mascotStanding from "./mascot-standing.png";
-import mascotStandingYellow from "./mascot-standing-yellow.png";
-
-/* Plain rockets (no mascot) — purple by default, yellow in the hover theme. */
-import rocketPlainPurple from "./rocket-plain-purple.png";
-import rocketPlainYellow from "./rocket-plain-yellow.png";
 
 
 export type RocketPose = "wave" | "tablet" | "point";
@@ -36,19 +30,26 @@ const mascotYellow = mascotYellowMain;
 
 import sachackslogo from "./sachackslogo.png"
 
+import prize1 from "./prize1.png"
+import prize2 from "./prize2.png"
+import prize3 from "./prize3.png"
+import prize4 from "./prize4.png"
+import prize5 from "./prize5.png"
+
 export {
   mascot,
   mascotYellow,
   mascotPurpleMain,
   mascotYellowMain,
-  mascotStanding,
-  mascotStandingYellow,
-  rocketPlainPurple,
-  rocketPlainYellow,
   comicCloudGrey,
   comicCloudOutline,
   comicStarYellow,
   sachackslogo,
+  prize1,
+  prize2,
+  prize3,
+  prize4,
+  prize5,
 };
 
 
