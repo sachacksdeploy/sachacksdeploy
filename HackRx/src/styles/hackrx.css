@@ -1171,6 +1171,17 @@ a {
   opacity: .78;
 }
 
+/* links in answers: a deeper shade of the site magenta, so it stays readable on cream */
+.faq-item p a {
+  color: #b8105f;
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.faq-item p a:hover {
+  color: var(--sv-magenta);
+}
+
 /* CTA */
 .cta-section {
   position: relative;
@@ -2692,7 +2703,8 @@ a {
 }
 
 .venom-dialog.venom-notice .venom-title {
-  padding-right: 24px; /* clear the close (X) button */
+  padding-right: 24px;
+  /* clear the close (X) button */
   line-height: 1.05;
 }
 
