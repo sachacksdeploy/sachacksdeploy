@@ -1980,7 +1980,8 @@ a {
 /* speed lines radiating behind spotlight artwork */
 .spotlight-art {
   background-color: var(--cream);
-  background-image: repeating-conic-gradient(from 0deg at 50% 50%, rgba(20, 20, 20, .10) 0deg 1.6deg, transparent 1.6deg 9deg);
+  border: none;
+  background-image: repeating-conic-gradient(from 0deg at 50% 50%, rgba(174, 13, 96, 0.498) 0deg 1.6deg, transparent 1.6deg 9deg);
 }
 
 /* chromatic aberration on big comic type */
