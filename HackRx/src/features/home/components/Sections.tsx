@@ -194,7 +194,21 @@ const sponsorTiers = [
 ];
 
 const faqs = [
-  { q: "When and where?", a: "Betty Irene Moore (Link Map) in Sacramento, CA. Date is Sunday, Novemeber 15th" },
+  {
+    q: "When and where?",
+    a: (
+      <>
+        <a
+          href="https://maps.google.com/maps/place//data=!4m2!3m1!1s0x809ad07bc6624077:0x5be7814fdb410f19?entry=s&sa=X&ved=2ahUKEwjLiOyutYOYAxXRDTQIHYKRJfwQ4kB6BAgnEAA&hl=en"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Betty Irene Moore
+        </a>{" "}
+        in Sacramento, CA. Date is Sunday, Novemeber 15th
+      </>
+    ),
+  },
   { q: "Who can attend?", a: "Any college student or recent graduate is welcome to participate in SacHacks!" },
   { q: "When is the application deadline?", a: "Thursday, November 12th at 11:59pm" },
   { q: "What is a hackathon?", a: "A hackathon is a 24-hour event where students collaborate to build creative projects and compete for prizes." },
